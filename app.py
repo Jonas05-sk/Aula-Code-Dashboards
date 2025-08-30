@@ -1,16 +1,18 @@
 # app.py — Dashboard de RH (versão ajustada com tratamento de erros visível)
-# Como rodar:
-# 0) Crie um ambiente virtual  ->  python -m venv venv
+# Como rodar:python -m venv venv
+# 0) Crie um ambiente virtual  -> python -m venv .venv
 # 1) Ative a venv  ->  .venv\Scripts\Activate.ps1   (Windows)  |  source .venv/bin/activate  (Mac/Linux)
 # 2) Instale deps  ->  pip install -r requirements.txt
 # 3) Rode          ->  streamlit run app.py
 
-import os
+# --------------------- Importações ---------------------
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import os
 from datetime import date
+from io import BytesIO
 
 # --------------------- Configuração básica ---------------------
 st.set_page_config(page_title="Dashboard de RH", layout="wide")
@@ -203,10 +205,10 @@ if d3 and d4 and "Data de Demissao" in df_f.columns:
                  (df_f["Data de Demissao"] <= pd.to_datetime(d4)))]
 
 # --------------------- KPIs ---------------------
-def k_headcount_ativo(d): 
+def k_headcount_ativo(d):
     return int((d["Status"] == "Ativo").sum()) if "Status" in d.columns else 0
 
-def k_desligados(d): 
+def k_desligados(d):
     return int((d["Status"] == "Desligado").sum()) if "Status" in d.columns else 0
 
 def k_folha(d):
