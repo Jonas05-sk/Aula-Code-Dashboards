@@ -10,6 +10,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 import os
 from datetime import date
 from io import BytesIO
@@ -17,6 +18,75 @@ from io import BytesIO
 # --------------------- Configuração básica ---------------------
 st.set_page_config(page_title="Dashboard de RH", layout="wide")
 st.title("Dashboard de RH")
+
+# --------------------- Injeção de CSS para a fonte e a cor de fundo ---------------------
+st.markdown("""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        
+        /* Aplica a nova cor de fundo */
+        body {
+            background-color: #1A2436; /* Azul-escuro acinzentado */
+        }
+
+        /* Aplica a fonte apenas a elementos de texto, títulos e KPIs */
+        body, h1, h2, h3, h4, h5, h6, .stMetric, p, div {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        /* Mantém o ajuste do título para maior impacto */
+        h1 {
+            font-weight: 700;
+        }
+
+        .stMetric {
+            font-weight: 600;
+        }
+
+        /* Melhorias para a tabela */
+        .stDataFrame {
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid #334466; /* Borda sutil */
+        }
+
+        /* Cores vibrantes para a tabela */
+        .stDataFrame table {
+            background-color: #2E3A52;
+        }
+
+        .stDataFrame table tbody tr {
+            background-color: #2E3A52;
+        }
+
+        .stDataFrame table tbody tr:nth-child(odd) {
+            background-color: #38455C;
+        }
+        
+        /* Cor de destaque para as linhas selecionadas */
+        .stDataFrame table tbody tr:hover {
+            background-color: #FF69B4; /* Rosa vibrante */
+        }
+
+        /* Estilização da barra de rolagem */
+        .stDataFrame::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        .stDataFrame::-webkit-scrollbar-track {
+            background: #2E3A52;
+            border-radius: 10px;
+        }
+
+        .stDataFrame::-webkit-scrollbar-thumb {
+            background-color: #FF69B4; /* Rosa vibrante */
+            border-radius: 10px;
+            border: 3px solid #2E3A52;
+        }
+
+    </style>
+    """, unsafe_allow_html=True)
 
 # Se o arquivo estiver na mesma pasta do app.py, pode deixar assim.
 # Ajuste para o caminho local caso esteja em outra pasta (ex.: r"C:\...\BaseFuncionarios.xlsx")
@@ -99,8 +169,10 @@ df = None
 fonte = None
 if up is not None:
     try:
+        # Ação de Upload: Envio de um arquivo de um dispositivo para o dashboard.
         df = load_from_bytes(up)
         fonte = "Upload"
+        st.caption(f"Dados carregados via **{fonte}**. Linhas: {len(df)} | Colunas: {len(df.columns)}")
     except Exception as e:
         st.error(f"Erro ao ler Excel (Upload): {e}")
         st.stop()
@@ -112,11 +184,15 @@ else:
             st.stop()
         df = load_from_path(caminho_manual)
         fonte = "Caminho"
+        st.caption(f"Dados carregados via **{fonte}**. Linhas: {len(df)} | Colunas: {len(df.columns)}")
     except Exception as e:
         st.error(f"Erro ao ler Excel (Caminho): {e}")
         st.stop()
-
-st.caption(f"Dados carregados via **{fonte}**. Linhas: {len(df)} | Colunas: {len(df.columns)}")
+        
+# --------------------- AVISO IMPORTANTE ---------------------
+if df is None:
+    st.info("Por favor, carregue um arquivo Excel válido para continuar.")
+    st.stop()
 
 # Mostra colunas detectadas (ajuda no debug)
 with st.expander("Ver colunas detectadas"):
@@ -204,11 +280,15 @@ if d3 and d4 and "Data de Demissao" in df_f.columns:
                 ((df_f["Data de Demissao"] >= pd.to_datetime(d3)) &
                  (df_f["Data de Demissao"] <= pd.to_datetime(d4)))]
 
-# --------------------- KPIs ---------------------
+# --------------------- KPIs (Key Performance Indicators) ---------------------
+# KPI é a sigla para 'Key Performance Indicator', que significa 'Indicador-Chave de Desempenho'.
+# São métricas usadas para medir o sucesso ou o desempenho de uma atividade.
 def k_headcount_ativo(d):
+    # Headcount Ativo: a contagem total de funcionários que estão trabalhando ativamente na empresa.
     return int((d["Status"] == "Ativo").sum()) if "Status" in d.columns else 0
 
 def k_desligados(d):
+    # Desligados: o número de funcionários que não fazem mais parte da empresa.
     return int((d["Status"] == "Desligado").sum()) if "Status" in d.columns else 0
 
 def k_folha(d):
@@ -246,35 +326,84 @@ with colA:
     if "Área" in df_f.columns:
         d = df_f.groupby("Área").size().reset_index(name="Headcount")
         if not d.empty:
-            fig = px.bar(d, x="Área", y="Headcount", title="Headcount por Área")
+            # Altera a cor do gráfico para laranja vibrante
+            fig = px.bar(d, x="Área", y="Headcount", title="Headcount por Área",
+                         color_discrete_sequence=["#FF7F00"])
             st.plotly_chart(fig, use_container_width=True)
 
 with colB:
     if "Cargo" in df_f.columns and "Salario Base" in df_f.columns:
         d = df_f.groupby("Cargo", as_index=False)["Salario Base"].mean().sort_values("Salario Base", ascending=False)
         if not d.empty:
-            fig = px.bar(d, x="Cargo", y="Salario Base", title="Salário Médio por Cargo")
+            fig = px.bar(d, y="Cargo", x="Salario Base", title="Salário Médio por Cargo", orientation='h',
+                         color_discrete_sequence=["#FFA500"])
+            fig.update_traces(texttemplate='R$%{x:.2f}', textposition='outside')
+            fig.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
             st.plotly_chart(fig, use_container_width=True)
 
 colC, colD = st.columns(2)
 with colC:
     if "Idade" in df_f.columns and not df_f["Idade"].dropna().empty:
-        fig = px.histogram(df_f, x="Idade", nbins=20, title="Distribuição de Idade")
+        fig = px.histogram(df_f, x="Idade", nbins=20, title="Distribuição de Idade", 
+                           color_discrete_sequence=["#0080FF"])
+        
+        fig.update_traces(texttemplate='%{y}', textposition='outside')
+        
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(255,255,255,0.2)')
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(255,255,255,0.2)')
+
+        fig.update_layout(
+            font=dict(family="Poppins"),
+            xaxis_title="Idade",
+            yaxis_title="Contagem",
+            bargap=0.1
+        )
         st.plotly_chart(fig, use_container_width=True)
+
 
 with colD:
     if "Sexo" in df_f.columns:
         d = df_f["Sexo"].value_counts().reset_index()
         d.columns = ["Sexo", "Contagem"]
         if not d.empty:
-            fig = px.pie(d, values="Contagem", names="Sexo", title="Distribuição por Sexo")
+            fig = go.Figure(data=[go.Pie(
+                labels=d['Sexo'],
+                values=d['Contagem'],
+                hole=.4, # Cria o buraco para o gráfico de rosca
+                pull=[0.02, 0.02], # Adiciona um espaçamento entre as fatias
+                marker_colors=["#1E90FF", "#87CEFA"] # Cores azuis vibrantes e harmoniosas
+            )])
+
+            # Adiciona o texto central
+            total_count = d['Contagem'].sum()
+            fig.add_annotation(
+                text=f'Total:<br>{total_count}',
+                x=0.5, y=0.5, font_size=20, showarrow=False
+            )
+            
+            # Atualiza o layout para ter um visual mais limpo
+            fig.update_layout(
+                title_text="Distribuição por Sexo",
+                title_x=0.5,
+                legend=dict(x=1.1, y=0.5),
+                uniformtext_minsize=12,
+                uniformtext_mode='hide'
+            )
+
             st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
 # --------------------- Tabela e Downloads ---------------------
 st.subheader("Tabela (dados filtrados)")
-st.dataframe(df_f, use_container_width=True)
+# Adicionando um campo de busca
+nome_busca_tabela = st.text_input("Buscar na Tabela por Nome Completo")
+if nome_busca_tabela:
+    df_tabela = df_f[df_f["Nome Completo"].str.contains(nome_busca_tabela, case=False, na=False)]
+else:
+    df_tabela = df_f
+
+st.dataframe(df_tabela, use_container_width=True)
 
 csv_bytes = df_f.to_csv(index=False).encode("utf-8")
 st.download_button(
@@ -297,4 +426,3 @@ if to_excel:
         file_name="funcionarios_filtrado.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    
