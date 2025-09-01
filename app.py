@@ -22,50 +22,67 @@ st.title("Dashboard de RH")
 # --------------------- Injeção de CSS para a fonte e a cor de fundo ---------------------
 st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        /* Importa as fontes, incluindo a 'Canela' via URL (substituída por uma similar para compatibilidade) */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Playfair+Display:wght@700&display=swap');
         
-        /* Aplica a nova cor de fundo */
+        /* Mudar o fundo para preto sólido */
         body {
-            background-color: #1A2436; /* Azul-escuro acinzentado */
+            background-color: #000000;
         }
 
-        /* Aplica a fonte apenas a elementos de texto, títulos e KPIs */
-        body, h1, h2, h3, h4, h5, h6, .stMetric, p, div {
-            font-family: 'Poppins', sans-serif;
+        /* Aplica a fonte e a cor branca ao texto para contraste */
+        body, p, div, label, span, button {
+            font-family: 'Roboto', sans-serif;
+            color: #FFFFFF;
         }
-
-        /* Mantém o ajuste do título para maior impacto */
-        h1 {
+        
+        /* Aplica a fonte "Canela" (ou similar) a títulos e KPIs */
+        h1, h2, h3, h4, h5, h6, .stMetric, .stMetric > div:first-child > div:first-child {
+            font-family: 'Playfair Display', serif; /* Fonte similar à Canela */
             font-weight: 700;
+            color: #FFFFFF;
+        }
+        
+        .stMetric > div:first-child > div:last-child {
+            font-family: 'Roboto', sans-serif;
         }
 
         .stMetric {
             font-weight: 600;
+            color: #FFFFFF;
+        }
+
+        /* Cores de fundo dos cards de KPI para contraste */
+        .stMetric > div:first-child {
+            background-color: #2F2F2F; /* Cinza escuro para os cards */
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
         }
 
         /* Melhorias para a tabela */
         .stDataFrame {
             border-radius: 12px;
             overflow: hidden;
-            border: 2px solid #334466; /* Borda sutil */
+            border: 1px solid #555555; /* Borda mais clara */
         }
 
-        /* Cores vibrantes para a tabela */
+        /* Cores da tabela */
         .stDataFrame table {
-            background-color: #2E3A52;
+            background-color: #2F2F2F; /* Cinza escuro para a tabela */
         }
 
         .stDataFrame table tbody tr {
-            background-color: #2E3A52;
+            background-color: #2F2F2F;
         }
 
         .stDataFrame table tbody tr:nth-child(odd) {
-            background-color: #38455C;
+            background-color: #3B3B3B; /* Linhas alternadas para facilitar a leitura */
         }
         
         /* Cor de destaque para as linhas selecionadas */
         .stDataFrame table tbody tr:hover {
-            background-color: #FF69B4; /* Rosa vibrante */
+            background-color: #4F4F4F; /* Tom mais claro ao passar o mouse */
         }
 
         /* Estilização da barra de rolagem */
@@ -75,14 +92,18 @@ st.markdown("""
         }
 
         .stDataFrame::-webkit-scrollbar-track {
-            background: #2E3A52;
+            background: #2F2F2F;
             border-radius: 10px;
         }
 
         .stDataFrame::-webkit-scrollbar-thumb {
-            background-color: #FF69B4; /* Rosa vibrante */
+            background-color: #FF6700; /* Laranja para destaque */
             border-radius: 10px;
-            border: 3px solid #2E3A52;
+            border: 3px solid #2F2F2F;
+        }
+        
+        .stButton button {
+            font-family: 'Playfair Display', serif;
         }
 
     </style>
@@ -204,7 +225,8 @@ st.sidebar.header("Filtros")
 def msel(col_name: str):
     if col_name in df.columns:
         vals = sorted([v for v in df[col_name].dropna().unique()])
-        return st.sidebar.multiselect(col_name, vals)
+        # Traduzido para "Escolha as opções"
+        return st.sidebar.multiselect(col_name, vals, placeholder="Escolha as opções")
     return []
 
 area_sel   = msel("Área")
@@ -280,6 +302,11 @@ if d3 and d4 and "Data de Demissao" in df_f.columns:
                 ((df_f["Data de Demissao"] >= pd.to_datetime(d3)) &
                  (df_f["Data de Demissao"] <= pd.to_datetime(d4)))]
 
+# --------------------- Destaques Importantes ---------------------
+st.header("Visão Geral Rápida")
+st.info("💡 **Atenção:** Os KPIs abaixo fornecem um resumo instantâneo do status do seu RH. Eles são a primeira coisa a ser verificada para entender a situação geral da sua força de trabalho. 📊")
+st.write("---")
+
 # --------------------- KPIs (Key Performance Indicators) ---------------------
 # KPI é a sigla para 'Key Performance Indicator', que significa 'Indicador-Chave de Desempenho'.
 # São métricas usadas para medir o sucesso ou o desempenho de uma atividade.
@@ -324,41 +351,72 @@ st.divider()
 colA, colB = st.columns(2)
 with colA:
     if "Área" in df_f.columns:
-        d = df_f.groupby("Área").size().reset_index(name="Headcount")
+        d = df_f.groupby("Área").size().reset_index(name="Headcount").sort_values("Headcount", ascending=True)
         if not d.empty:
-            # Altera a cor do gráfico para laranja vibrante
-            fig = px.bar(d, x="Área", y="Headcount", title="Headcount por Área",
-                         color_discrete_sequence=["#FF7F00"])
+            fig = px.bar(d, x="Headcount", y="Área", title="Headcount por Área", orientation='h',
+                         color_discrete_sequence=["#FFA500"]) # Laranja vibrante
+            fig.update_layout(template="plotly_dark")
             st.plotly_chart(fig, use_container_width=True)
+            st.markdown(
+                """
+                **O que este gráfico mostra:** A distribuição do número de funcionários (Headcount) por cada área da empresa. Ele permite visualizar quais departamentos estão com maior ou menor número de pessoas.
+                
+                **Ações Sugeridas:**
+                -   **Identifique áreas com alto headcount:** Pode indicar necessidade de otimização de processos ou grande demanda de trabalho. 📈
+                -   **Identifique áreas com baixo headcount:** Pode ser um sinal de que a equipe precisa de mais recursos ou que as vagas em aberto não estão sendo preenchidas. 📉
+                -   **Verifique se a alocação de pessoal está alinhada com as metas estratégicas da empresa.** 🎯
+                """
+            )
 
 with colB:
     if "Cargo" in df_f.columns and "Salario Base" in df_f.columns:
         d = df_f.groupby("Cargo", as_index=False)["Salario Base"].mean().sort_values("Salario Base", ascending=False)
         if not d.empty:
             fig = px.bar(d, y="Cargo", x="Salario Base", title="Salário Médio por Cargo", orientation='h',
-                         color_discrete_sequence=["#FFA500"])
+                         color_discrete_sequence=["#FFA500"]) # Laranja vibrante
             fig.update_traces(texttemplate='R$%{x:.2f}', textposition='outside')
-            fig.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
+            fig.update_layout(uniformtext_minsize=8, uniformtext_mode='hide', template="plotly_dark")
             st.plotly_chart(fig, use_container_width=True)
+            st.markdown(
+                """
+                **O que este gráfico mostra:** O salário médio pago para cada cargo dentro da empresa. Isso é fundamental para avaliar a competitividade salarial. 💰
+                
+                **Ações Sugeridas:**
+                -   **Análise de Mercado:** Compare os salários médios com os benchmarks de mercado para garantir que a empresa está pagando de forma justa e competitiva. 📊
+                -   **Equidade Interna:** Verifique se não há grandes discrepâncias salariais entre cargos com responsabilidades similares. ⚖️
+                -   **Ajustes Salariais:** Use essa informação para planejar aumentos ou ajustes de remuneração. 📈
+                """
+            )
 
 colC, colD = st.columns(2)
 with colC:
     if "Idade" in df_f.columns and not df_f["Idade"].dropna().empty:
         fig = px.histogram(df_f, x="Idade", nbins=20, title="Distribuição de Idade", 
-                           color_discrete_sequence=["#0080FF"])
+                           color_discrete_sequence=["#00BFFF"]) # Azul vibrante (mantido)
         
         fig.update_traces(texttemplate='%{y}', textposition='outside')
         
-        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(255,255,255,0.2)')
-        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(255,255,255,0.2)')
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(150,150,150,0.8)')
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(150,150,150,0.8)')
 
         fig.update_layout(
-            font=dict(family="Poppins"),
+            font=dict(family="Roboto"),
             xaxis_title="Idade",
             yaxis_title="Contagem",
-            bargap=0.1
+            bargap=0.1,
+            template="plotly_dark"
         )
         st.plotly_chart(fig, use_container_width=True)
+        st.markdown(
+            """
+            **O que este gráfico mostra:** A faixa etária predominante na sua força de trabalho. Ele ajuda a entender se a empresa possui um corpo de funcionários jovem, maduro ou uma mistura equilibrada. 🧑‍🤝‍🧑
+            
+            **Ações Sugeridas:**
+            -   **Retenção de Talentos:** Se a empresa tem uma idade média elevada, pode ser necessário focar em planos de sucessão para reter o conhecimento dos funcionários mais experientes. 🧠
+            -   **Diversidade Geracional:** Uma distribuição de idade equilibrada pode promover a troca de conhecimento e a inovação. 💡
+            -   **Benefícios:** Adapte os pacotes de benefícios e a cultura da empresa para atender às diferentes gerações. 🎁
+            """
+        )
 
 
 with colD:
@@ -371,7 +429,7 @@ with colD:
                 values=d['Contagem'],
                 hole=.4, # Cria o buraco para o gráfico de rosca
                 pull=[0.02, 0.02], # Adiciona um espaçamento entre as fatias
-                marker_colors=["#1E90FF", "#87CEFA"] # Cores azuis vibrantes e harmoniosas
+                marker_colors=["#00BFFF", "#FF69B4"] # Azul e rosa vibrantes (mantido)
             )])
 
             # Adiciona o texto central
@@ -387,10 +445,21 @@ with colD:
                 title_x=0.5,
                 legend=dict(x=1.1, y=0.5),
                 uniformtext_minsize=12,
-                uniformtext_mode='hide'
+                uniformtext_mode='hide',
+                template="plotly_dark"
             )
 
             st.plotly_chart(fig, use_container_width=True)
+            st.markdown(
+                """
+                **O que este gráfico mostra:** O equilíbrio entre a quantidade de funcionários de cada sexo na empresa. É uma métrica importante para monitorar a diversidade e a inclusão. ✨
+                
+                **Ações Sugeridas:**
+                -   **Estratégias de Recrutamento:** Se houver um desequilíbrio, considere ajustar as estratégias de recrutamento para atrair candidatos de todos os gêneros. 🤝
+                -   **Políticas de Diversidade:** Promova políticas de inclusão e igualdade de oportunidades para criar um ambiente de trabalho mais justo. ⚖️
+                -   **Avaliação de Cargos:** Verifique se a distribuição de gênero é equilibrada em todos os níveis e cargos, especialmente em posições de liderança. 👑
+                """
+            )
 
 st.divider()
 
